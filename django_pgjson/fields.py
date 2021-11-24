@@ -58,7 +58,7 @@ class JsonField(base_field_class):
         super(JsonField, self).__init__(*args, **kwargs)
 
     def db_type(self, connection):
-        if psycopg2_version < 90200:
+        if connection.pg_version < 90200:
             raise RuntimeError("django_pgjson does not supports postgresql version < 9.2")
         return "json"
 
@@ -118,7 +118,7 @@ class JsonField(base_field_class):
 class JsonBField(JsonField):
 
     def db_type(self, connection):
-        if psycopg2_version < 90400:
+        if connection.pg_version < 90400:
             raise RuntimeError("django_pgjson: PostgreSQL >= 9.4 is required for jsonb support.")
         return "jsonb"
 
