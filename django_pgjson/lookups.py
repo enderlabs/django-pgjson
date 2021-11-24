@@ -1,7 +1,6 @@
 # -*- encoding: utf-8 -*-
 
 from django.utils.functional import cached_property
-from django.utils import six
 from django.db.models import Transform, Lookup, CharField
 
 
@@ -57,7 +56,7 @@ class ExactLookup(Lookup):
 
         if len(rhs_params) == 1 and hasattr(rhs_params[0], "adapted"):
             adapted = rhs_params[0].adapted
-            if isinstance(adapted, six.string_types):
+            if isinstance(adapted, str):
                 rhs_params[0] = adapted
 
         params = lhs_params + rhs_params

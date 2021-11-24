@@ -5,15 +5,18 @@ import re
 import django
 import copy
 
+import six
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
 
 from django import forms
+from django.db import connection
 from django.db import models
 from django.conf import settings
 
 from future.utils import with_metaclass
+
 
 if django.VERSION >= (1, 7):
     from django.utils.module_loading import import_string
@@ -112,6 +115,7 @@ class JsonField(base_field_class):
 
 
 class JsonBField(JsonField):
+
     def db_type(self, connection):
         if connection.pg_version < 90400:
             raise RuntimeError("django_pgjson: PostgreSQL >= 9.4 is required for jsonb support.")
