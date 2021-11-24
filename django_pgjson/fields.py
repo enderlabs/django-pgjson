@@ -11,7 +11,6 @@ import psycopg2.extensions
 import psycopg2.extras
 
 from django import forms
-from django.db import connection
 from django.db import models
 from django.conf import settings
 
