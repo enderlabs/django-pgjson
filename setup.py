@@ -9,7 +9,7 @@ PostgreSQL json field support for Django.
 
 setup(
     name="django-pgjson",
-    version="0.3.1",
+    version="0.4.0",
     url="https://github.com/djangonauts/django-pgjson",
     license="BSD",
     platforms=["OS Independent"],
@@ -21,21 +21,24 @@ setup(
     maintainer_email="niwi@niwi.be",
     packages=find_packages(),
     include_package_data=False,
-    install_requires=[],
+    install_requires=[
+        "Django>=5.2,<5.3",
+        "psycopg2-binary>=2.9.0",
+    ],
+    python_requires=">=3.10",
     zip_safe=False,
     classifiers=[
         "Development Status :: 4 - Beta",
         "Framework :: Django",
+        "Framework :: Django :: 5.2",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.3",
-        "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Topic :: Internet :: WWW/HTTP",
     ]
 )

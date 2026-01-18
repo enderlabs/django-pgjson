@@ -2,8 +2,7 @@
 
 from __future__ import unicode_literals, absolute_import
 import json
-
-import django, uuid
+import uuid
 
 from django.core.serializers import serialize, deserialize
 from django.test import TestCase
@@ -73,14 +72,11 @@ class JsonFieldTests(TestCase):
         self.assertIsNone(obj.data)
 
     def test_uuid_not_supported_by_default_json_encoder(self):
-        if django.VERSION < (1, 8):
-            with self.assertRaises(TypeError):
-                self.model_class.objects.create(data=uuid.uuid4())
-        else:
-            uid = uuid.uuid4()
-            obj = self.model_class.objects.create(data=uid)
-            obj = self.model_class.objects.get(pk=obj.pk)
-            self.assertEqual(obj.data, str(uid))
+        # Django's DjangoJSONEncoder supports UUID since Django 1.8
+        uid = uuid.uuid4()
+        obj = self.model_class.objects.create(data=uid)
+        obj = self.model_class.objects.get(pk=obj.pk)
+        self.assertEqual(obj.data, str(uid))
 
     @override_settings(PGJSON_ENCODER_CLASS='pg_json_fields.encoders.CustomJSONEncoder')
     def test_uuid_support_with_custom_json_encoder(self):
@@ -127,183 +123,181 @@ class JsonFieldTests(TestCase):
         self.assertIsInstance(form_field, FakeFieldClass)
 
 
-if django.VERSION >= (1, 7):
+class JsonLookupsFieldTests(TestCase):
+    def setUp(self):
+        self.model_class = TextModel
+        self.model_class.objects.all().delete()
 
-    class JsonLookupsFieldTests(TestCase):
-        def setUp(self):
-            self.model_class = TextModel
-            self.model_class.objects.all().delete()
+    def test_key_lookup(self):
+        self.model_class.objects.create(data={"name": "foo"})
+        self.model_class.objects.create(data={"name": "bar"})
 
-        def test_key_lookup(self):
-            self.model_class.objects.create(data={"name": "foo"})
-            self.model_class.objects.create(data={"name": "bar"})
+        qs = self.model_class.objects.filter(data__at_name="foo")
+        self.assertEqual(qs.count(), 1)
 
-            qs = self.model_class.objects.filter(data__at_name="foo")
-            self.assertEqual(qs.count(), 1)
+    # def test_key_lookup2(self):
+    #     self.model_class.objects.create(data={"name": {"full": "foo"}})
+    #     self.model_class.objects.create(data={"name": {"full": "bar"}})
+    #     qs = self.model_class.objects.filter(data__at_name={"full": "foo"})
+    #     self.assertEqual(qs.count(), 1)
 
-        # def test_key_lookup2(self):
-        #     self.model_class.objects.create(data={"name": {"full": "foo"}})
-        #     self.model_class.objects.create(data={"name": {"full": "bar"}})
-        #     qs = self.model_class.objects.filter(data__at_name={"full": "foo"})
-        #     self.assertEqual(qs.count(), 1)
+    def test_key_lookup3(self):
+        self.model_class.objects.create(data={"num": 2})
+        self.model_class.objects.create(data={"num": 3})
+        qs = self.model_class.objects.filter(data__at_num=2)
+        self.assertEqual(qs.count(), 1)
 
-        def test_key_lookup3(self):
-            self.model_class.objects.create(data={"num": 2})
-            self.model_class.objects.create(data={"num": 3})
-            qs = self.model_class.objects.filter(data__at_num=2)
-            self.assertEqual(qs.count(), 1)
+    def test_key_lookup4(self):
+        self.model_class.objects.create(data=[1, 2, 3, 4])
+        self.model_class.objects.create(data=[5, 6, 7, 8])
 
-        def test_key_lookup4(self):
-            self.model_class.objects.create(data=[1, 2, 3, 4])
-            self.model_class.objects.create(data=[5, 6, 7, 8])
+        qs = self.model_class.objects.filter(data__at_2=3)
+        self.assertEqual(qs.count(), 1)
 
-            qs = self.model_class.objects.filter(data__at_2=3)
-            self.assertEqual(qs.count(), 1)
+    # def test_key_lookup5(self):
+    #     self.model_class.objects.create(data=[{"foo": 1}])
+    #     self.model_class.objects.create(data=[{"bar": 1}])
+    #
+    #     qs = self.model_class.objects.filter(data__at_0={"foo": 1})
+    #     self.assertEqual(qs.count(), 1)
 
-        # def test_key_lookup5(self):
-        #     self.model_class.objects.create(data=[{"foo": 1}])
-        #     self.model_class.objects.create(data=[{"bar": 1}])
-        #
-        #     qs = self.model_class.objects.filter(data__at_0={"foo": 1})
-        #     self.assertEqual(qs.count(), 1)
+    def test_key_lookup_in(self):
+        self.model_class.objects.create(data={"name": "foo"})
+        self.model_class.objects.create(data={"name": "bar"})
 
-        def test_key_lookup_in(self):
-            self.model_class.objects.create(data={"name": "foo"})
-            self.model_class.objects.create(data={"name": "bar"})
+        qs = self.model_class.objects.filter(data__at_name__in=["foo", "bar"])
+        self.assertEqual(qs.count(), 2)
 
-            qs = self.model_class.objects.filter(data__at_name__in=["foo", "bar"])
-            self.assertEqual(qs.count(), 2)
+    def test_key_lookup_isnull1(self):
+        self.model_class.objects.create(data={"name": "foo"})
+        self.model_class.objects.create(data={"name": "bar"})
 
-        def test_key_lookup_isnull1(self):
-            self.model_class.objects.create(data={"name": "foo"})
-            self.model_class.objects.create(data={"name": "bar"})
+        qs = self.model_class.objects.filter(data__at_name__isnull=True)
+        self.assertEqual(qs.count(), 0)
 
-            qs = self.model_class.objects.filter(data__at_name__isnull=True)
-            self.assertEqual(qs.count(), 0)
+    def test_key_lookup_isnull2(self):
+        self.model_class.objects.create(data={"name": "foo"})
+        self.model_class.objects.create(data={"name": "bar"})
 
-        def test_key_lookup_isnull2(self):
-            self.model_class.objects.create(data={"name": "foo"})
-            self.model_class.objects.create(data={"name": "bar"})
+        qs = self.model_class.objects.filter(data__at_name__isnull=False)
+        self.assertEqual(qs.count(), 2)
 
-            qs = self.model_class.objects.filter(data__at_name__isnull=False)
-            self.assertEqual(qs.count(), 2)
+    def test_key_lookup_isnull3(self):
+        self.model_class.objects.create(data={"name": "foo"})
+        self.model_class.objects.create(data={"name": "bar"})
 
-        def test_key_lookup_isnull3(self):
-            self.model_class.objects.create(data={"name": "foo"})
-            self.model_class.objects.create(data={"name": "bar"})
+        qs = self.model_class.objects.filter(data__at_notfound__isnull=True)
+        self.assertEqual(qs.count(), 2)
 
-            qs = self.model_class.objects.filter(data__at_notfound__isnull=True)
-            self.assertEqual(qs.count(), 2)
+    def test_key_lookup_isnull4(self):
+        self.model_class.objects.create(data={"name": "foo"})
+        self.model_class.objects.create(data={"name": "bar"})
 
-        def test_key_lookup_isnull4(self):
-            self.model_class.objects.create(data={"name": "foo"})
-            self.model_class.objects.create(data={"name": "bar"})
+        qs = self.model_class.objects.filter(data__at_notfound__isnull=False)
+        self.assertEqual(qs.count(), 0)
 
-            qs = self.model_class.objects.filter(data__at_notfound__isnull=False)
-            self.assertEqual(qs.count(), 0)
+    def test_array_length(self):
+        self.model_class.objects.create(data=[1, 2, 3])
+        self.model_class.objects.create(data=[5, 6, 7, 8, 9])
 
-        def test_array_length(self):
-            self.model_class.objects.create(data=[1, 2, 3])
-            self.model_class.objects.create(data=[5, 6, 7, 8, 9])
+        qs = self.model_class.objects.filter(data__array_length=3)
+        self.assertEqual(qs.count(), 1)
 
-            qs = self.model_class.objects.filter(data__array_length=3)
-            self.assertEqual(qs.count(), 1)
-
-        def test_indent(self):
-            obj1 = TextModelWithIndent.objects.create(
-                data={"name": "foo", "bar": {"baz": 1}})
-            qs = TextModelWithIndent.objects.filter(data__at_name="foo")
-            serialized_obj1 = serialize('json', qs)
-            self.assertIn('\n  "name":',
-                          json.loads(serialized_obj1)[0]['fields']['data'])
+    def test_indent(self):
+        obj1 = TextModelWithIndent.objects.create(
+            data={"name": "foo", "bar": {"baz": 1}})
+        qs = TextModelWithIndent.objects.filter(data__at_name="foo")
+        serialized_obj1 = serialize('json', qs)
+        self.assertIn('\n  "name":',
+                      json.loads(serialized_obj1)[0]['fields']['data'])
 
 
-    class JsonBFieldTests(JsonFieldTests):
-        def setUp(self):
-            self.model_class = TextModelB
+class JsonBFieldTests(JsonFieldTests):
+    def setUp(self):
+        self.model_class = TextModelB
 
-        def test_jcontains_lookup1(self):
-            self.model_class.objects.create(data=[1, 2, [1, 3]])
-            self.model_class.objects.create(data=[4, 5, 6])
+    def test_jcontains_lookup1(self):
+        self.model_class.objects.create(data=[1, 2, [1, 3]])
+        self.model_class.objects.create(data=[4, 5, 6])
 
-            qs = self.model_class.objects.filter(data__jcontains=[[1, 3]])
-            self.assertEqual(qs.count(), 1)
+        qs = self.model_class.objects.filter(data__jcontains=[[1, 3]])
+        self.assertEqual(qs.count(), 1)
 
-            qs = self.model_class.objects.filter(data__jcontains=[4, 6])
-            self.assertEqual(qs.count(), 1)
+        qs = self.model_class.objects.filter(data__jcontains=[4, 6])
+        self.assertEqual(qs.count(), 1)
 
-            qs = self.model_class.objects.filter(data__jcontains='[4, 6]')
-            self.assertEqual(qs.count(), 1)
+        qs = self.model_class.objects.filter(data__jcontains='[4, 6]')
+        self.assertEqual(qs.count(), 1)
 
-        def test_jcontains_lookup2(self):
-            self.model_class.objects.create(data={"title": "An action story", "tags": ["violent", "romantic"]})
-            self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
-            self.model_class.objects.create(data=[4, 5, 6])
+    def test_jcontains_lookup2(self):
+        self.model_class.objects.create(data={"title": "An action story", "tags": ["violent", "romantic"]})
+        self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
+        self.model_class.objects.create(data=[4, 5, 6])
 
-            qs = self.model_class.objects.filter(data__jcontains={"tags": ["sad"]})
-            self.assertEqual(qs.count(), 1)
+        qs = self.model_class.objects.filter(data__jcontains={"tags": ["sad"]})
+        self.assertEqual(qs.count(), 1)
 
-        def test_jhas_lookup(self):
-            obj1 = self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
-            obj2 = self.model_class.objects.create(data={"title": "A sadder story", "tags": ["sad", "sadder", "romantic"]})
+    def test_jhas_lookup(self):
+        obj1 = self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
+        obj2 = self.model_class.objects.create(data={"title": "A sadder story", "tags": ["sad", "sadder", "romantic"]})
 
-            qs = self.model_class.objects.filter(data__jhas="title")
-            self.assertEqual(qs.count(), 2)
-            qs = self.model_class.objects.filter(data__jhas="doesntexist")
-            self.assertEqual(qs.count(), 0)
+        qs = self.model_class.objects.filter(data__jhas="title")
+        self.assertEqual(qs.count(), 2)
+        qs = self.model_class.objects.filter(data__jhas="doesntexist")
+        self.assertEqual(qs.count(), 0)
 
-        def test_jhas_lookup_type_coercion(self):
-            obj1 = self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
-            obj2 = self.model_class.objects.create(data={"123": "A sad story", "tags": ["sad", "romantic"]})
+    def test_jhas_lookup_type_coercion(self):
+        obj1 = self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
+        obj2 = self.model_class.objects.create(data={"123": "A sad story", "tags": ["sad", "romantic"]})
 
-            qs = self.model_class.objects.filter(data__jhas=123)
-            self.assertEqual(qs.count(), 1)
-            qs = self.model_class.objects.filter(data__jhas=1)
-            self.assertEqual(qs.count(), 0)
-            with self.assertRaises(TypeError):
-                qs = self.model_class.objects.filter(data__jhas={"title": "A sad story"})
+        qs = self.model_class.objects.filter(data__jhas=123)
+        self.assertEqual(qs.count(), 1)
+        qs = self.model_class.objects.filter(data__jhas=1)
+        self.assertEqual(qs.count(), 0)
+        with self.assertRaises(TypeError):
+            qs = self.model_class.objects.filter(data__jhas={"title": "A sad story"})
 
-        def test_jhas_any_lookup(self):
-            obj1 = self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
-            obj2 = self.model_class.objects.create(data={"title": "A sadder story", "tags": ["sad", "sadder", "romantic"]})
+    def test_jhas_any_lookup(self):
+        obj1 = self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
+        obj2 = self.model_class.objects.create(data={"title": "A sadder story", "tags": ["sad", "sadder", "romantic"]})
 
-            qs = self.model_class.objects.filter(data__jhas_any=["title", "doesnotexist"])
-            self.assertEqual(qs.count(), 2)
-            qs = self.model_class.objects.filter(data__jhas_any=["doesntexist", "stillnope"])
-            self.assertEqual(qs.count(), 0)
+        qs = self.model_class.objects.filter(data__jhas_any=["title", "doesnotexist"])
+        self.assertEqual(qs.count(), 2)
+        qs = self.model_class.objects.filter(data__jhas_any=["doesntexist", "stillnope"])
+        self.assertEqual(qs.count(), 0)
 
-        def test_jhas_any_lookup_type_coercion(self):
-            obj1 = self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
-            obj2 = self.model_class.objects.create(data={"title": "A sadder story", "tags": ["sad", "sadder", "romantic"]})
+    def test_jhas_any_lookup_type_coercion(self):
+        obj1 = self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
+        obj2 = self.model_class.objects.create(data={"title": "A sadder story", "tags": ["sad", "sadder", "romantic"]})
 
-            # Coerce other iterables to list
-            qs = self.model_class.objects.filter(data__jhas_any=("title", "doesnotexist"))
-            self.assertEqual(qs.count(), 2)
+        # Coerce other iterables to list
+        qs = self.model_class.objects.filter(data__jhas_any=("title", "doesnotexist"))
+        self.assertEqual(qs.count(), 2)
 
-            # Coerce int values
-            qs = self.model_class.objects.filter(data__jhas_any=("title", 123))
-            self.assertEqual(qs.count(), 2)
+        # Coerce int values
+        qs = self.model_class.objects.filter(data__jhas_any=("title", 123))
+        self.assertEqual(qs.count(), 2)
 
-        def test_jhas_all_lookup(self):
-            obj1 = self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
-            obj2 = self.model_class.objects.create(data={"title": "A sadder story", "tags": ["sad", "sadder", "romantic"]})
+    def test_jhas_all_lookup(self):
+        obj1 = self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
+        obj2 = self.model_class.objects.create(data={"title": "A sadder story", "tags": ["sad", "sadder", "romantic"]})
 
-            qs = self.model_class.objects.filter(data__jhas_all=["title", "tags"])
-            self.assertEqual(qs.count(), 2)
-            qs = self.model_class.objects.filter(data__jhas_all=["doesntexist", "stillnope"])
-            self.assertEqual(qs.count(), 0)
+        qs = self.model_class.objects.filter(data__jhas_all=["title", "tags"])
+        self.assertEqual(qs.count(), 2)
+        qs = self.model_class.objects.filter(data__jhas_all=["doesntexist", "stillnope"])
+        self.assertEqual(qs.count(), 0)
 
-        def test_jhas_all_lookup_type_coercion(self):
-            obj1 = self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
-            obj2 = self.model_class.objects.create(data={"title": "A sadder story", "123": "data", "tags": ["sad", "sadder", "romantic"]})
+    def test_jhas_all_lookup_type_coercion(self):
+        obj1 = self.model_class.objects.create(data={"title": "A sad story", "tags": ["sad", "romantic"]})
+        obj2 = self.model_class.objects.create(data={"title": "A sadder story", "123": "data", "tags": ["sad", "sadder", "romantic"]})
 
-            # Coerce other iterables to list
-            qs = self.model_class.objects.filter(data__jhas_all=("title", "tags"))
-            self.assertEqual(qs.count(), 2)
+        # Coerce other iterables to list
+        qs = self.model_class.objects.filter(data__jhas_all=("title", "tags"))
+        self.assertEqual(qs.count(), 2)
 
-            # Coerce int values
-            qs = self.model_class.objects.filter(data__jhas_all=("title", 123))
-            self.assertEqual(qs.count(), 1)
+        # Coerce int values
+        qs = self.model_class.objects.filter(data__jhas_all=("title", 123))
+        self.assertEqual(qs.count(), 1)
 
 
 #class ArrayFormFieldTests(TestCase):
