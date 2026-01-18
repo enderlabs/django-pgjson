@@ -1,6 +1,51 @@
 Changelog
 =========
 
+0.4.0
+-----
+
+Date: 2026-01-18
+
+**MAJOR VERSION UPGRADE - BREAKING CHANGES**
+
+This release upgrades django-pgjson to Django 5.2.10 and Python 3.10+.
+
+Requirements:
+- Django >= 5.2, < 5.3 (was: Django 1.5-1.9)
+- Python >= 3.10 (was: Python 2.7, 3.3-3.5)
+- psycopg2-binary >= 2.9.0 (was: psycopg2 2.6.1)
+
+Removed:
+- Python 2 support (Python 2 reached EOL in 2020)
+- Django versions < 5.2 support
+- six library dependency (Python 2/3 compatibility)
+- future library dependency (Python 2/3 compatibility)
+- South framework support (obsolete since Django 1.7)
+- SubfieldBase metaclass (removed in Django 1.10)
+
+Updated:
+- from_db_value() signature to Django 3.0+ format (3 parameters)
+- Database engine name: postgresql (was: postgresql_psycopg2)
+- Settings format: MIDDLEWARE (was: MIDDLEWARE_CLASSES)
+- Removed all Django version checks
+- Removed all Python 2/3 compatibility code
+
+Added:
+- Docker support (Dockerfile and docker-compose.yml)
+- requirements.txt for easy dependency management
+- Environment variable configuration support
+- DEFAULT_AUTO_FIELD setting (BigAutoField)
+- USE_TZ setting
+- Comprehensive upgrade documentation
+
+Migration Notes:
+- All existing migrations remain compatible
+- No database schema changes required
+- Field API unchanged (JsonField, JsonBField work the same)
+- Lookup API unchanged (at_*, jcontains, jhas, etc.)
+
+For detailed upgrade instructions, see UPGRADE_GUIDE.md
+
 0.3.2
 -----
 
