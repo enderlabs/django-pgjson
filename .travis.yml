@@ -1,40 +1,22 @@
-sudo: false
-
 language: python
 
 python:
-  - "3.5"
-  - "3.4"
-  - "3.3"
-  - "2.7"
+  - "3.10"
+  - "3.11"
+  - "3.12"
 
 env:
-  - DJANGO="django==1.9b1"
-  - DJANGO="django==1.8.6"
-  - DJANGO="django==1.7.10"
-  - DJANGO="django==1.6.11"
-  - DJANGO="django==1.5.12"
-
-matrix:
-  exclude:
-    - python: "3.5"
-      env: DJANGO="django==1.5.12"
-    - python: "3.5"
-      env: DJANGO="django==1.6.11"
-    - python: "3.5"
-      env: DJANGO="django==1.7.10"
-    - python: "3.3"
-      env: DJANGO="django==1.9b1"
+  - DJANGO="Django>=5.2,<5.3"
 
 addons:
-  postgresql: "9.4"
+  postgresql: "14"
 
 services:
   - postgresql
 
 install:
   - pip install $DJANGO
-  - pip install psycopg2==2.6.1
+  - pip install psycopg2-binary>=2.9.0
 
 branches:
   only:
@@ -44,7 +26,7 @@ script:
   - python runtests.py
 
 before_script:
-  - createdb test
+  - psql -c 'create database test;' -U postgres
 
 notifications:
   email:

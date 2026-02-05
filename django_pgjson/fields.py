@@ -2,10 +2,8 @@
 
 import json
 import re
-import django
 import copy
 
-import six
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
@@ -13,14 +11,7 @@ import psycopg2.extras
 from django import forms
 from django.db import models
 from django.conf import settings
-
-from future.utils import with_metaclass
-
-
-if django.VERSION >= (1, 7):
-    from django.utils.module_loading import import_string
-else:
-    from django.utils.module_loading import import_by_path as import_string
+from django.utils.module_loading import import_string
 
 
 def get_encoder_class():
@@ -42,13 +33,7 @@ psycopg2.extras.register_default_json(loads=json.loads)
 psycopg2.extras.register_json(loads=json.loads, oid=3802, array_oid=3807)
 
 
-if django.VERSION < (1, 8):
-    base_field_class = with_metaclass(models.SubfieldBase, models.Field)
-else:
-    base_field_class = models.Field
-
-
-class JsonField(base_field_class):
+class JsonField(models.Field):
     empty_strings_allowed = False
 
     def __init__(self, *args, **kwargs):
@@ -79,7 +64,7 @@ class JsonField(base_field_class):
                 pass
         return value
 
-    def from_db_value(self, value, expression=None, connection=None, context=None):
+    def from_db_value(self, value, expression, connection):
         return self.to_python(value)
 
     def formfield(self, **kwargs):
@@ -145,20 +130,20 @@ class JsonBField(JsonField):
                 raise TypeError("jhas lookup requires str or int")
         return value
 
-if django.VERSION >= (1, 7):
-    from .lookups import ExactLookup
-    from .lookups import (ArrayLengthLookup, JsonBArrayLengthLookup, JsonBContainsLookup,
-                          JsonBHasLookup, JsonBHasAnyLookup, JsonBHasAllLookup)
 
-    JsonField.register_lookup(ExactLookup)
-    JsonField.register_lookup(ArrayLengthLookup)
+from .lookups import ExactLookup
+from .lookups import (ArrayLengthLookup, JsonBArrayLengthLookup, JsonBContainsLookup,
+                      JsonBHasLookup, JsonBHasAnyLookup, JsonBHasAllLookup)
 
-    JsonBField.register_lookup(ExactLookup)
-    JsonBField.register_lookup(JsonBArrayLengthLookup)
-    JsonBField.register_lookup(JsonBContainsLookup)
-    JsonBField.register_lookup(JsonBHasLookup)
-    JsonBField.register_lookup(JsonBHasAnyLookup)
-    JsonBField.register_lookup(JsonBHasAllLookup)
+JsonField.register_lookup(ExactLookup)
+JsonField.register_lookup(ArrayLengthLookup)
+
+JsonBField.register_lookup(ExactLookup)
+JsonBField.register_lookup(JsonBArrayLengthLookup)
+JsonBField.register_lookup(JsonBContainsLookup)
+JsonBField.register_lookup(JsonBHasLookup)
+JsonBField.register_lookup(JsonBHasAnyLookup)
+JsonBField.register_lookup(JsonBHasAllLookup)
 
 
 class JsonFormField(forms.CharField):
@@ -169,27 +154,3 @@ class JsonFormField(forms.CharField):
             return value
         return json.dumps(value, cls=get_encoder_class())
 
-
-# South compatibility
-try:
-    from south.modelsinspector import add_introspection_rules
-    add_introspection_rules([(
-        (JsonField,),
-        [],
-        {
-            "blank": ["blank", {"default": True}],
-            "null": ["null", {"default": False}],
-        },
-    )], (r"^django_pgjson\.fields\.JsonField",))
-
-    add_introspection_rules([(
-        (JsonBField,),
-        [],
-        {
-            "blank": ["blank", {"default": True}],
-            "null": ["null", {"default": False}],
-        },
-    )], (r"^django_pgjson\.fields\.JsonBField",))
-
-except ImportError:
-    pass
